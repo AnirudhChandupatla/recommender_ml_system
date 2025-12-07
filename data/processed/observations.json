@@ -1,8 +1,8 @@
 {
   "observations": [
     {
-      "observation_id": "0234bedd-71f8-4e7c-96dd-28b824102159:washing machine:query_str",
-      "user_id": "0234bedd-71f8-4e7c-96dd-28b824102159",
+      "observation_id": "e55cd0db-7148-4e5f-8e64-4ec8aaf5401b:washing machine:query_str",
+      "user_id": "e55cd0db-7148-4e5f-8e64-4ec8aaf5401b",
       "key": "washing machine",
       "key_type": "query_str",
       "list_of_recommendations": [
@@ -1014,26 +1014,39 @@
           "event_type": "click_product",
           "redirected_to": "B014K6AS4C",
           "rating": null,
-          "timestamp": "2025-12-07T15:38:56.746725"
-        },
-        {
-          "event_type": "click_product",
-          "redirected_to": "B014K6AS4C",
-          "rating": null,
-          "timestamp": "2025-12-07T15:39:40.125698"
+          "timestamp": "2025-12-07T16:04:53.478662"
         }
       ],
       "rating": null,
       "good_or_bad": "good",
-      "created_at": "2025-12-07T15:38:56.746813",
-      "updated_at": "2025-12-07T15:39:40.125725"
+      "created_at": "2025-12-07T16:04:53.478699",
+      "updated_at": "2025-12-07T16:04:53.478708"
     },
     {
-      "observation_id": "0234bedd-71f8-4e7c-96dd-28b824102159:B014K6AS4C:parent_asin",
-      "user_id": "0234bedd-71f8-4e7c-96dd-28b824102159",
+      "observation_id": "e55cd0db-7148-4e5f-8e64-4ec8aaf5401b:B014K6AS4C:parent_asin",
+      "user_id": "e55cd0db-7148-4e5f-8e64-4ec8aaf5401b",
       "key": "B014K6AS4C",
       "key_type": "parent_asin",
       "list_of_recommendations": [
+        "B08R9G5NTL",
+        "B00529N23G",
+        "B00076ODOQ",
+        "B0BS3P66KL",
+        "B097H8XKYQ",
+        "B0B5F7VVJB",
+        "B0BWBF4MN1",
+        "B08CDSGKXW",
+        "B08WZC8837",
+        "B09KTDB8Z8",
+        "B08Z35PRKM",
+        "B09XR2584Z",
+        "B08Y5QWGKS",
+        "B0BJ2CJTB5",
+        "B08ZCCQJWY",
+        "B08Z32HNRV",
+        "B08ZCJDB24",
+        "B00F0OT5UW",
+        "B093145GW7",
         "B014K6AS4C",
         "B077Y8DMHK",
         "B009TM0L9U",
@@ -1062,29 +1075,23 @@
           "event_type": "page_visit",
           "redirected_to": "B014K6AS4C",
           "rating": 3.0,
-          "timestamp": "2025-12-07T15:39:08.003324"
-        },
-        {
-          "event_type": "page_visit",
-          "redirected_to": "B014K6AS4C",
-          "rating": 3.0,
-          "timestamp": "2025-12-07T15:39:43.432425"
+          "timestamp": "2025-12-07T16:04:56.754764"
         },
         {
           "event_type": "click_product",
           "redirected_to": "B01HC1SCC2",
           "rating": null,
-          "timestamp": "2025-12-07T15:39:46.995368"
+          "timestamp": "2025-12-07T16:05:04.732454"
         }
       ],
       "rating": 3.0,
       "good_or_bad": "good",
-      "created_at": "2025-12-07T15:39:08.003363",
-      "updated_at": "2025-12-07T15:39:46.995396"
+      "created_at": "2025-12-07T16:04:56.754806",
+      "updated_at": "2025-12-07T16:05:04.732478"
     },
     {
-      "observation_id": "0234bedd-71f8-4e7c-96dd-28b824102159:B01HC1SCC2:parent_asin",
-      "user_id": "0234bedd-71f8-4e7c-96dd-28b824102159",
+      "observation_id": "e55cd0db-7148-4e5f-8e64-4ec8aaf5401b:B01HC1SCC2:parent_asin",
+      "user_id": "e55cd0db-7148-4e5f-8e64-4ec8aaf5401b",
       "key": "B01HC1SCC2",
       "key_type": "parent_asin",
       "list_of_recommendations": [
@@ -1134,24 +1141,24 @@
         {
           "event_type": "purchase",
           "redirected_to": "B01HC1SCC2",
-          "rating": 5.0,
-          "timestamp": "2025-12-07T15:39:50.147346"
+          "rating": 2.0,
+          "timestamp": "2025-12-07T16:05:10.266110"
         },
         {
           "event_type": "click_product",
           "redirected_to": "B00KRF4XGA",
           "rating": null,
-          "timestamp": "2025-12-07T15:39:56.265031"
+          "timestamp": "2025-12-07T16:05:17.239906"
         }
       ],
-      "rating": 5.0,
+      "rating": 2.0,
       "good_or_bad": "good",
-      "created_at": "2025-12-07T15:39:50.147377",
-      "updated_at": "2025-12-07T15:39:56.265058"
+      "created_at": "2025-12-07T16:05:10.266152",
+      "updated_at": "2025-12-07T16:05:17.239930"
     },
     {
-      "observation_id": "0234bedd-71f8-4e7c-96dd-28b824102159:B00KRF4XGA:parent_asin",
-      "user_id": "0234bedd-71f8-4e7c-96dd-28b824102159",
+      "observation_id": "e55cd0db-7148-4e5f-8e64-4ec8aaf5401b:B00KRF4XGA:parent_asin",
+      "user_id": "e55cd0db-7148-4e5f-8e64-4ec8aaf5401b",
       "key": "B00KRF4XGA",
       "key_type": "parent_asin",
       "list_of_recommendations": [
@@ -1196,37 +1203,116 @@
         "B00JUDZ1MK"
       ],
       "redirected_from": "B01HC1SCC2",
-      "next_parent_asin": null,
+      "next_parent_asin": "B010RDR8FE",
       "events": [
         {
           "event_type": "page_visit",
           "redirected_to": "B00KRF4XGA",
           "rating": 3.0,
-          "timestamp": "2025-12-07T15:39:59.560585"
+          "timestamp": "2025-12-07T16:05:20.491859"
         },
         {
           "event_type": "scroll_end",
           "redirected_to": null,
           "rating": null,
-          "timestamp": "2025-12-07T15:39:59.741482"
+          "timestamp": "2025-12-07T16:05:24.717366"
         },
         {
           "event_type": "scroll_end",
           "redirected_to": null,
           "rating": null,
-          "timestamp": "2025-12-07T15:40:01.394674"
+          "timestamp": "2025-12-07T16:05:29.000622"
+        },
+        {
+          "event_type": "click_product",
+          "redirected_to": "B010RDR8FE",
+          "rating": null,
+          "timestamp": "2025-12-07T16:05:56.263483"
+        }
+      ],
+      "rating": 3.0,
+      "good_or_bad": "good",
+      "created_at": "2025-12-07T16:05:20.491890",
+      "updated_at": "2025-12-07T16:05:56.263501"
+    },
+    {
+      "observation_id": "e55cd0db-7148-4e5f-8e64-4ec8aaf5401b:B010RDR8FE:parent_asin",
+      "user_id": "e55cd0db-7148-4e5f-8e64-4ec8aaf5401b",
+      "key": "B010RDR8FE",
+      "key_type": "parent_asin",
+      "list_of_recommendations": [
+        "B00IIH64KM",
+        "B00IIHAX6S",
+        "B001ICK7TI",
+        "B01GC1087U",
+        "B001ICYB2M",
+        "B07NLD8CFP",
+        "B004X4PSME",
+        "B07KDZQ5CC",
+        "B004QENRX8",
+        "B078SZZ1LX",
+        "B07PSNTZ1T",
+        "B01ARL009W",
+        "B01GC435F4",
+        "B00IIH7TJC",
+        "B07BN258FF",
+        "B07H8PFJ6L",
+        "B01BN0HTSG",
+        "B07VGMHBW8",
+        "B07CH821K2",
+        "B00JUDZ1MK",
+        "B010RDR8FE",
+        "B01N4LK92X",
+        "B005GM942C",
+        "B09X384HTM",
+        "B002HT0958",
+        "B00ECV5TJ0",
+        "B000A6VIKU",
+        "B00O85N7WG",
+        "B00KRF4XGA",
+        "B004YUZMYQ",
+        "B08BZRQSJW",
+        "B009TM0L9U",
+        "B003FW3WKK",
+        "B00AKHRVNW",
+        "B077Y8DMHK",
+        "B08QMKDD3D",
+        "B000BTDNEK",
+        "B00HG8BF7G",
+        "B00E0QE8U8"
+      ],
+      "redirected_from": "B00KRF4XGA",
+      "next_parent_asin": null,
+      "events": [
+        {
+          "event_type": "page_visit",
+          "redirected_to": "B010RDR8FE",
+          "rating": 3.0,
+          "timestamp": "2025-12-07T16:05:59.543758"
+        },
+        {
+          "event_type": "scroll_end",
+          "redirected_to": null,
+          "rating": null,
+          "timestamp": "2025-12-07T16:06:00.025490"
+        },
+        {
+          "event_type": "scroll_end",
+          "redirected_to": null,
+          "rating": null,
+          "timestamp": "2025-12-07T16:06:02.277613"
         }
       ],
       "rating": 3.0,
       "good_or_bad": "bad",
-      "created_at": "2025-12-07T15:39:59.560616",
-      "updated_at": "2025-12-07T15:40:01.394695"
+      "created_at": "2025-12-07T16:05:59.543789",
+      "updated_at": "2025-12-07T16:06:02.277638"
     }
   ],
   "user_sessions": {
-    "0234bedd-71f8-4e7c-96dd-28b824102159": {
-      "created_at": "2025-12-07T15:38:56.746840",
-      "observation_count": 4
+    "e55cd0db-7148-4e5f-8e64-4ec8aaf5401b": {
+      "created_at": "2025-12-07T16:04:53.478719",
+      "observation_count": 5
     }
   }
 }

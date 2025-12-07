@@ -1112,6 +1112,39 @@ async def delete_products_by_asins(request: DeleteByAsinsRequest):
         raise HTTPException(status_code=500, detail=f"Failed to delete products: {str(e)}")
 
 
+@app.get("/admin/products/stats")
+async def get_product_stats():
+    """
+    Get product statistics including total count and per-category breakdown.
+
+    **Use Case**: Display product statistics in admin dashboard.
+
+    **Returns**:
+    ```json
+    {
+        "status": "success",
+        "total_products": 1000,
+        "category_breakdown": [
+            {"category": "Appliances", "count": 800},
+            {"category": "Kitchen", "count": 200}
+        ]
+    }
+    ```
+    """
+    db = initialize_db()
+
+    try:
+        stats = db.get_product_stats_by_category()
+
+        return JSONResponse(content={
+            "status": "success",
+            "total_products": stats["total_products"],
+            "category_breakdown": stats["category_breakdown"]
+        })
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get product stats: {str(e)}")
+
+
 # ============================================================
 # MODEL MONITORING / OBSERVABILITY ENDPOINTS
 # ============================================================

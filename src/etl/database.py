@@ -307,6 +307,40 @@ class RecommenderDB:
                 "avg_rating": round(avg_rating, 2) if avg_rating else 0
             }
 
+    def get_product_stats_by_category(self) -> Dict[str, Any]:
+        """
+        Get product statistics including total count and per-category breakdown.
+
+        Returns:
+            Dictionary with total_products and category_breakdown
+        """
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+
+            # Get total products
+            cursor.execute("SELECT COUNT(*) FROM product_catalog")
+            total_products = cursor.fetchone()[0]
+
+            # Get products per category
+            cursor.execute("""
+                SELECT main_category, COUNT(*) as count
+                FROM product_catalog
+                WHERE main_category IS NOT NULL
+                GROUP BY main_category
+                ORDER BY count DESC
+            """)
+            category_rows = cursor.fetchall()
+
+            category_breakdown = [
+                {"category": row[0], "count": row[1]}
+                for row in category_rows
+            ]
+
+            return {
+                "total_products": total_products,
+                "category_breakdown": category_breakdown
+            }
+
     def drop_indexes(self):
         """
         Drop indexes before bulk insert for better performance.

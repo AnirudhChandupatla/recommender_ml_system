@@ -174,16 +174,46 @@
     <!-- Data Management Tab -->
     <div id="data-management-tab" class="tab-content">
         <h2>Data Management</h2>
-        <p style="font-size: 18px; color: #666;">
-            This section will be implemented later for managing data lifecycle, including:
-        </p>
-        <ul style="font-size: 16px; color: #666;">
-            <li>Adding new products and reviews</li>
-            <li>Deleting old or obsolete data</li>
-            <li>Managing user data</li>
-            <li>Data import/export tools</li>
-            <li>Data quality checks and validation</li>
-        </ul>
+
+        <div class="controls">
+            <button class="button" onclick="loadProductStats()">Refresh Statistics</button>
+        </div>
+
+        <!-- Product Statistics -->
+        <h3>Product Statistics</h3>
+        <div class="stats-container" id="productStatsContainer">
+            <div class="stat-card neutral">
+                <h3>Total Products</h3>
+                <div class="value" id="statTotalProducts">0</div>
+            </div>
+        </div>
+
+        <!-- Category Breakdown -->
+        <div id="categoryBreakdown" style="margin-top: 20px;"></div>
+
+        <hr style="margin: 40px 0;">
+
+        <!-- Add New Products Section -->
+        <h3>Add New Products</h3>
+        <p style="color: #666;">Upload a CSV file containing new products (e.g., future_products.csv)</p>
+        <div class="controls">
+            <input type="file" id="productFileInput" accept=".csv" style="padding: 10px;">
+            <button class="button" onclick="uploadProductsCSV()">Upload Products CSV</button>
+        </div>
+        <div id="uploadProductsResult" style="margin-top: 10px; font-weight: bold;"></div>
+
+        <hr style="margin: 40px 0;">
+
+        <!-- Delete Products Section -->
+        <h3>Delete Products</h3>
+        <p style="color: #666;">Enter product ASINs to delete (one per line or comma-separated). CASCADE will also delete associated reviews.</p>
+        <div>
+            <textarea id="deleteProductsInput" rows="6" style="width: 100%; padding: 10px; font-family: monospace; font-size: 14px;" placeholder="B08C9LPCQV&#10;B08ANOTHER&#10;B08PRODUCT&#10;or: B08C9LPCQV, B08ANOTHER, B08PRODUCT"></textarea>
+        </div>
+        <div class="controls" style="margin-top: 10px;">
+            <button class="button danger" onclick="deleteProducts()">Delete Products</button>
+        </div>
+        <div id="deleteProductsResult" style="margin-top: 10px; font-weight: bold;"></div>
     </div>
 
     <script>
@@ -206,6 +236,8 @@
             } else if (tabName === 'data-management') {
                 document.getElementById('data-management-tab').classList.add('active');
                 document.querySelectorAll('.tab-button')[1].classList.add('active');
+                // Load product statistics when Data Management tab is opened
+                loadProductStats();
             }
         }
 
@@ -408,6 +440,178 @@
         // Go back to login page
         function goBack() {
             window.location.href = 'login.html';
+        }
+
+        // ============================================================
+        // DATA MANAGEMENT FUNCTIONS
+        // ============================================================
+
+        // Load product statistics
+        async function loadProductStats() {
+            try {
+                const response = await fetch(`${API_BASE}/admin/products/stats`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load product statistics');
+                }
+
+                const data = await response.json();
+                displayProductStats(data);
+            } catch (error) {
+                console.error('Error loading product statistics:', error);
+                alert('Error loading product statistics. Please make sure the API server is running.');
+            }
+        }
+
+        // Display product statistics
+        function displayProductStats(data) {
+            // Update total products
+            document.getElementById('statTotalProducts').textContent = data.total_products || 0;
+
+            // Display category breakdown
+            const categoryDiv = document.getElementById('categoryBreakdown');
+            if (!data.category_breakdown || data.category_breakdown.length === 0) {
+                categoryDiv.innerHTML = '<p style="color: #666;">No category data available.</p>';
+                return;
+            }
+
+            let html = '<h4>Products per Category</h4>';
+            html += '<table>';
+            html += '<thead><tr><th>Category</th><th>Product Count</th></tr></thead>';
+            html += '<tbody>';
+
+            data.category_breakdown.forEach(cat => {
+                html += `<tr>`;
+                html += `<td><strong>${cat.category}</strong></td>`;
+                html += `<td>${cat.count}</td>`;
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            categoryDiv.innerHTML = html;
+        }
+
+        // Upload products from CSV file
+        async function uploadProductsCSV() {
+            const fileInput = document.getElementById('productFileInput');
+            const resultDiv = document.getElementById('uploadProductsResult');
+
+            if (!fileInput.files || fileInput.files.length === 0) {
+                resultDiv.style.color = '#f44336';
+                resultDiv.textContent = 'Please select a CSV file to upload.';
+                return;
+            }
+
+            const file = fileInput.files[0];
+            if (!file.name.endsWith('.csv')) {
+                resultDiv.style.color = '#f44336';
+                resultDiv.textContent = 'Please select a valid CSV file.';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            resultDiv.style.color = '#2196F3';
+            resultDiv.textContent = 'Uploading products...';
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/products/insert-csv`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Upload failed');
+                }
+
+                const data = await response.json();
+                resultDiv.style.color = '#4CAF50';
+                resultDiv.textContent = `Success! ${data.message}. Database stats: ${data.rows_affected} products added.`;
+
+                // Clear file input
+                fileInput.value = '';
+
+                // Refresh statistics
+                loadProductStats();
+            } catch (error) {
+                console.error('Error uploading products:', error);
+                resultDiv.style.color = '#f44336';
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
+        }
+
+        // Delete products by ASINs
+        async function deleteProducts() {
+            const input = document.getElementById('deleteProductsInput');
+            const resultDiv = document.getElementById('deleteProductsResult');
+
+            const inputText = input.value.trim();
+            if (!inputText) {
+                resultDiv.style.color = '#f44336';
+                resultDiv.textContent = 'Please enter product ASINs to delete.';
+                return;
+            }
+
+            // Parse ASINs - support both newline and comma-separated
+            let asins = [];
+            if (inputText.includes('\n')) {
+                // Newline-separated
+                asins = inputText.split('\n').map(line => line.trim()).filter(line => line.length > 0);
+            } else {
+                // Comma-separated
+                asins = inputText.split(',').map(asin => asin.trim()).filter(asin => asin.length > 0);
+            }
+
+            if (asins.length === 0) {
+                resultDiv.style.color = '#f44336';
+                resultDiv.textContent = 'No valid ASINs found.';
+                return;
+            }
+
+            // Confirm deletion
+            const confirmMsg = `Are you sure you want to delete ${asins.length} product(s)?\n\nThis will also delete all associated reviews (CASCADE).\n\nASINs:\n${asins.slice(0, 10).join(', ')}${asins.length > 10 ? '...' : ''}`;
+            if (!confirm(confirmMsg)) {
+                return;
+            }
+
+            resultDiv.style.color = '#2196F3';
+            resultDiv.textContent = 'Deleting products...';
+
+            try {
+                const response = await fetch(`${API_BASE}/admin/products/by-asins`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ asins: asins })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.detail || 'Deletion failed');
+                }
+
+                const data = await response.json();
+                resultDiv.style.color = '#4CAF50';
+                resultDiv.textContent = `Success! ${data.message}`;
+
+                // Clear input
+                input.value = '';
+
+                // Refresh statistics
+                loadProductStats();
+            } catch (error) {
+                console.error('Error deleting products:', error);
+                resultDiv.style.color = '#f44336';
+                resultDiv.textContent = `Error: ${error.message}`;
+            }
         }
     </script>
 </body>
