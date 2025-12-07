@@ -42,6 +42,9 @@ SS_EMBEDDINGS_PATH = MODELS_DIR / "embeddings.npy"
 SS_PRODUCT_IDS_PATH = MODELS_DIR / "product_ids.npy"
 SS_BATCH_SIZE = 256
 
+# Model Monitoring Config
+OBSERVATIONS_PATH = PROCESSED_DATA_DIR / "observations.json"
+
 # API Config
 API_HOST = "0.0.0.0"
 API_PORT = 8000

@@ -19,12 +19,26 @@
     </button>
 
     <script>
+        // Generate UUID v4
+        function generateUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        }
+
         function loginAsUser() {
+            // Generate a new UUID for this user session
+            const userId = generateUUID();
+            // Store in sessionStorage (cleared when browser tab is closed)
+            sessionStorage.setItem('user_id', userId);
+            console.log('New user session created:', userId);
             window.location.href = 'landing.html';
         }
 
         function loginAsAdmin() {
-            alert('Admin functionality will be implemented later.');
+            window.location.href = 'admin.html';
         }
     </script>
 </body>

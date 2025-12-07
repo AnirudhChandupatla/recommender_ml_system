@@ -10,11 +10,15 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import os
 import tempfile
+import json
+import uuid
+from datetime import datetime
 from pathlib import Path
 
 from ..config import (
     DB_PATH, MF_CONFIG, MF_MODEL_PATH, MF_MAPPINGS_PATH, MF_SPARSE_MATRIX_PATH,
-    SS_MODEL_NAME, SS_INDEX_PATH, SS_EMBEDDINGS_PATH, SS_PRODUCT_IDS_PATH, SS_BATCH_SIZE
+    SS_MODEL_NAME, SS_INDEX_PATH, SS_EMBEDDINGS_PATH, SS_PRODUCT_IDS_PATH, SS_BATCH_SIZE,
+    OBSERVATIONS_PATH
 )
 from ..etl.database import RecommenderDB
 from ..models.matrix_factorization import MatrixFactorizationModel
@@ -149,6 +153,36 @@ class AdminOperationResponse(BaseModel):
     db_stats: Optional[Dict[str, Any]] = None
 
 
+# ============================================================
+# MODEL MONITORING / OBSERVABILITY MODELS
+# ============================================================
+
+class TrackingEvent(BaseModel):
+    """Request model for tracking user behavior events."""
+    user_id: str = Field(..., description="User session UUID")
+    event_type: str = Field(..., description="Event type: click_product, scroll_end, purchase, page_load")
+    key: str = Field(..., description="Query string or parent_asin")
+    key_type: str = Field(..., description="Type: query_str or parent_asin")
+    list_of_recommendations: List[str] = Field(default=[], description="List of recommended product ASINs")
+    redirected_to: Optional[str] = Field(None, description="Product ASIN user clicked/redirected to")
+    redirected_from: Optional[str] = Field(None, description="Source: query string or parent_asin")
+    timestamp: Optional[str] = Field(None, description="ISO timestamp of event")
+
+
+class ObservationRecord(BaseModel):
+    """Model for stored observation records."""
+    observation_id: str
+    user_id: str
+    key: str
+    key_type: str
+    list_of_recommendations: List[str]
+    redirected_from: Optional[str]
+    events: List[Dict[str, Any]]  # List of all events for this observation
+    good_or_bad: Optional[str] = None  # Derived: "good", "bad", or "pending"
+    created_at: str
+    updated_at: str
+
+
 # Helper Functions
 def initialize_db():
     """Initialize database connection."""
@@ -156,6 +190,59 @@ def initialize_db():
     if db is None:
         db = RecommenderDB(str(DB_PATH))
     return db
+
+
+def load_observations() -> Dict[str, Any]:
+    """Load observations from JSON file."""
+    if not OBSERVATIONS_PATH.exists():
+        return {"observations": [], "user_sessions": {}}
+
+    try:
+        with open(OBSERVATIONS_PATH, 'r') as f:
+            return json.load(f)
+    except Exception as e:
+        print(f"Error loading observations: {e}")
+        return {"observations": [], "user_sessions": {}}
+
+
+def save_observations(data: Dict[str, Any]):
+    """Save observations to JSON file."""
+    try:
+        with open(OBSERVATIONS_PATH, 'w') as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        print(f"Error saving observations: {e}")
+        raise
+
+
+def determine_recommendation_quality(events: List[Dict[str, Any]]) -> str:
+    """
+    Determine if recommendations were good or bad based on user events.
+
+    Good indicators:
+    - User clicked on a product (click_product event)
+    - User purchased a product (purchase event)
+
+    Bad indicators:
+    - User scrolled to end without clicking (scroll_end event without click_product)
+
+    Returns:
+        "good", "bad", or "pending"
+    """
+    has_click = any(e.get('event_type') == 'click_product' for e in events)
+    has_purchase = any(e.get('event_type') == 'purchase' for e in events)
+    has_scroll_end = any(e.get('event_type') == 'scroll_end' for e in events)
+
+    # Good if user clicked or purchased
+    if has_click or has_purchase:
+        return "good"
+
+    # Bad if user scrolled to end without any interaction
+    if has_scroll_end:
+        return "bad"
+
+    # Still pending - user hasn't completed interaction
+    return "pending"
 
 
 def load_mf_model():
@@ -291,7 +378,10 @@ async def root():
             "search": "/search",
             "products_all": "/products/all",
             "status": "/status",
-            "ui": "/ui/login.html"
+            "ui": "/ui/login.html",
+            "admin": "/ui/admin.html",
+            "tracking": "/tracking/event",
+            "monitoring": "/monitoring/observations"
         }
     }
 
@@ -1016,6 +1106,160 @@ async def delete_products_by_asins(request: DeleteByAsinsRequest):
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete products: {str(e)}")
+
+
+# ============================================================
+# MODEL MONITORING / OBSERVABILITY ENDPOINTS
+# ============================================================
+
+@app.post("/tracking/event")
+async def track_event(event: TrackingEvent):
+    """
+    Track user behavior event for model monitoring.
+
+    **Event Types**:
+    - `page_load`: User loaded a page with recommendations
+    - `click_product`: User clicked on a recommended product
+    - `scroll_end`: User scrolled to end of recommendations without clicking
+    - `purchase`: User purchased a product
+
+    **Request Body**:
+    ```json
+    {
+        "user_id": "uuid-here",
+        "event_type": "click_product",
+        "key": "search query or product ASIN",
+        "key_type": "query_str or parent_asin",
+        "list_of_recommendations": ["B08ASIN1", "B08ASIN2"],
+        "redirected_to": "B08ASIN1",
+        "redirected_from": "query or parent_asin",
+        "timestamp": "2025-12-07T10:30:00Z"
+    }
+    ```
+
+    **Returns**: Status of tracking operation.
+    """
+    try:
+        data = load_observations()
+
+        # Set timestamp if not provided
+        if not event.timestamp:
+            event.timestamp = datetime.utcnow().isoformat()
+
+        # Create observation key: user_id + key + key_type
+        obs_key = f"{event.user_id}:{event.key}:{event.key_type}"
+
+        # Find existing observation or create new one
+        existing_obs = None
+        for obs in data["observations"]:
+            if obs["observation_id"] == obs_key:
+                existing_obs = obs
+                break
+
+        event_data = {
+            "event_type": event.event_type,
+            "redirected_to": event.redirected_to,
+            "timestamp": event.timestamp
+        }
+
+        if existing_obs:
+            # Update existing observation
+            existing_obs["events"].append(event_data)
+            existing_obs["updated_at"] = datetime.utcnow().isoformat()
+            existing_obs["good_or_bad"] = determine_recommendation_quality(existing_obs["events"])
+        else:
+            # Create new observation
+            new_obs = {
+                "observation_id": obs_key,
+                "user_id": event.user_id,
+                "key": event.key,
+                "key_type": event.key_type,
+                "list_of_recommendations": event.list_of_recommendations,
+                "redirected_from": event.redirected_from,
+                "events": [event_data],
+                "good_or_bad": determine_recommendation_quality([event_data]),
+                "created_at": datetime.utcnow().isoformat(),
+                "updated_at": datetime.utcnow().isoformat()
+            }
+            data["observations"].append(new_obs)
+
+        # Track user session
+        if event.user_id not in data["user_sessions"]:
+            data["user_sessions"][event.user_id] = {
+                "created_at": datetime.utcnow().isoformat(),
+                "observation_count": 0
+            }
+        data["user_sessions"][event.user_id]["observation_count"] = len(
+            [obs for obs in data["observations"] if obs["user_id"] == event.user_id]
+        )
+
+        save_observations(data)
+
+        return JSONResponse(content={
+            "status": "success",
+            "message": "Event tracked successfully",
+            "observation_id": obs_key
+        })
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to track event: {str(e)}")
+
+
+@app.get("/monitoring/observations")
+async def get_observations():
+    """
+    Get all observation records for model monitoring dashboard.
+
+    **Returns**: List of all observations with their quality assessments.
+    """
+    try:
+        data = load_observations()
+
+        # Calculate statistics
+        total_observations = len(data["observations"])
+        good_count = len([obs for obs in data["observations"] if obs["good_or_bad"] == "good"])
+        bad_count = len([obs for obs in data["observations"] if obs["good_or_bad"] == "bad"])
+        pending_count = len([obs for obs in data["observations"] if obs["good_or_bad"] == "pending"])
+
+        stats = {
+            "total_observations": total_observations,
+            "good_recommendations": good_count,
+            "bad_recommendations": bad_count,
+            "pending_observations": pending_count,
+            "good_ratio": good_count / total_observations if total_observations > 0 else 0,
+            "bad_ratio": bad_count / total_observations if total_observations > 0 else 0,
+            "total_users": len(data["user_sessions"])
+        }
+
+        return JSONResponse(content={
+            "status": "success",
+            "statistics": stats,
+            "observations": data["observations"],
+            "user_sessions": data["user_sessions"]
+        })
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve observations: {str(e)}")
+
+
+@app.delete("/monitoring/observations")
+async def clear_observations():
+    """
+    Clear all observation records (admin operation).
+
+    **Returns**: Status of clear operation.
+    """
+    try:
+        data = {"observations": [], "user_sessions": {}}
+        save_observations(data)
+
+        return JSONResponse(content={
+            "status": "success",
+            "message": "All observations cleared successfully"
+        })
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to clear observations: {str(e)}")
 
 
 if __name__ == "__main__":

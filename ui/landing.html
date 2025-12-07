@@ -38,10 +38,85 @@
         let currentPage = 0;
         let isSearchResults = false;
 
+        // Tracking variables
+        let userId = sessionStorage.getItem('user_id') || 'anonymous';
+        let currentSearchQuery = '';
+        let hasClickedProduct = false;
+        let hasScrolledToEnd = false;
+        let displayedProductIds = [];
+
         // Load all products on page load
         window.onload = function() {
             loadAllProducts();
+            setupScrollTracking();
         };
+
+        // Setup scroll tracking to detect when user reaches end
+        function setupScrollTracking() {
+            window.addEventListener('scroll', function() {
+                // Check if user scrolled to bottom
+                const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                const scrollHeight = document.documentElement.scrollHeight;
+                const clientHeight = document.documentElement.clientHeight;
+
+                if (scrollTop + clientHeight >= scrollHeight - 100 && !hasScrolledToEnd) {
+                    hasScrolledToEnd = true;
+                    console.log('User scrolled to end of recommendations');
+
+                    // If user scrolled to end without clicking and we have search results, track as bad
+                    if (isSearchResults && !hasClickedProduct) {
+                        trackScrollEnd();
+                    }
+                }
+            });
+        }
+
+        // Track scroll to end event (bad indicator)
+        async function trackScrollEnd() {
+            if (!isSearchResults || !currentSearchQuery) return;
+
+            try {
+                await fetch(`${API_BASE}/tracking/event`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        user_id: userId,
+                        event_type: 'scroll_end',
+                        key: currentSearchQuery,
+                        key_type: 'query_str',
+                        list_of_recommendations: displayedProductIds,
+                        redirected_from: null
+                    })
+                });
+                console.log('Tracked: scroll_end event');
+            } catch (error) {
+                console.error('Error tracking scroll_end:', error);
+            }
+        }
+
+        // Track product click event (good indicator)
+        async function trackProductClick(productId) {
+            if (!isSearchResults || !currentSearchQuery) return;
+
+            try {
+                await fetch(`${API_BASE}/tracking/event`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        user_id: userId,
+                        event_type: 'click_product',
+                        key: currentSearchQuery,
+                        key_type: 'query_str',
+                        list_of_recommendations: displayedProductIds,
+                        redirected_to: productId,
+                        redirected_from: currentSearchQuery
+                    })
+                });
+                console.log('Tracked: click_product event for', productId);
+            } catch (error) {
+                console.error('Error tracking click:', error);
+            }
+        }
 
         // Load all products from catalog
         async function loadAllProducts() {
@@ -101,6 +176,12 @@
                 currentPage = 0;
                 isSearchResults = true;
 
+                // Reset tracking for new search
+                currentSearchQuery = query;
+                hasClickedProduct = false;
+                hasScrolledToEnd = false;
+                displayedProductIds = allProducts.map(p => p.product_id);
+
                 document.getElementById('searchInfo').innerHTML = `<strong>Search results for "${query}" - Found ${allProducts.length} products</strong>`;
                 displayCurrentPage();
             } catch (error) {
@@ -112,6 +193,10 @@
         // Clear search and reload all products
         function clearSearch() {
             document.getElementById('searchQuery').value = '';
+            currentSearchQuery = '';
+            isSearchResults = false;
+            hasClickedProduct = false;
+            hasScrolledToEnd = false;
             loadAllProducts();
         }
 
@@ -202,6 +287,16 @@
 
         // View product details
         function viewProduct(productId) {
+            // Track click if this is from search results
+            if (isSearchResults && currentSearchQuery) {
+                hasClickedProduct = true;
+                trackProductClick(productId);
+            }
+
+            // Store context for product page tracking
+            sessionStorage.setItem('redirected_from', isSearchResults ? currentSearchQuery : 'direct');
+            sessionStorage.setItem('redirected_from_type', isSearchResults ? 'query_str' : 'direct');
+
             window.location.href = `product.html?id=${productId}`;
         }
     </script>

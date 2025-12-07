@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Recommender System</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ccc;
+        }
+        .tab-button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            border: none;
+            background-color: #f0f0f0;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab-button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .stats-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .stat-card {
+            background-color: #f9f9f9;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .stat-card h3 {
+            margin: 0 0 10px 0;
+            color: #333;
+            font-size: 14px;
+        }
+        .stat-card .value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+        .stat-card.bad .value {
+            color: #f44336;
+        }
+        .stat-card.neutral .value {
+            color: #2196F3;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        table th, table td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        table th {
+            background-color: #4CAF50;
+            color: white;
+        }
+        table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .good {
+            background-color: #c8e6c9;
+        }
+        .bad {
+            background-color: #ffcdd2;
+        }
+        .pending {
+            background-color: #fff9c4;
+        }
+        .button {
+            padding: 10px 20px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+        }
+        .button.danger {
+            background-color: #f44336;
+        }
+        .button:hover {
+            opacity: 0.8;
+        }
+        .controls {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Admin Dashboard</h1>
+    <hr>
+
+    <div>
+        <button onclick="goBack()" style="padding: 10px 20px; font-size: 14px;">Back to Login</button>
+    </div>
+    <br>
+
+    <!-- Tab Navigation -->
+    <div class="tabs">
+        <button class="tab-button active" onclick="switchTab('monitoring')">Model Monitoring / Observability</button>
+        <button class="tab-button" onclick="switchTab('data-management')">Data Management</button>
+    </div>
+
+    <!-- Model Monitoring Tab -->
+    <div id="monitoring-tab" class="tab-content active">
+        <h2>Model Monitoring / Observability</h2>
+
+        <div class="controls">
+            <button class="button" onclick="loadObservations()">Refresh Data</button>
+            <button class="button danger" onclick="clearAllObservations()">Clear All Observations</button>
+        </div>
+
+        <!-- Statistics Cards -->
+        <div class="stats-container" id="statsContainer">
+            <div class="stat-card neutral">
+                <h3>Total Observations</h3>
+                <div class="value" id="statTotal">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Good Recommendations</h3>
+                <div class="value" id="statGood">0</div>
+            </div>
+            <div class="stat-card bad">
+                <h3>Bad Recommendations</h3>
+                <div class="value" id="statBad">0</div>
+            </div>
+            <div class="stat-card neutral">
+                <h3>Pending</h3>
+                <div class="value" id="statPending">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Good Ratio</h3>
+                <div class="value" id="statGoodRatio">0%</div>
+            </div>
+            <div class="stat-card bad">
+                <h3>Bad Ratio</h3>
+                <div class="value" id="statBadRatio">0%</div>
+            </div>
+            <div class="stat-card neutral">
+                <h3>Total Users</h3>
+                <div class="value" id="statUsers">0</div>
+            </div>
+        </div>
+
+        <!-- Observations Table -->
+        <h3>Observation Details</h3>
+        <div id="observationsTable"></div>
+    </div>
+
+    <!-- Data Management Tab -->
+    <div id="data-management-tab" class="tab-content">
+        <h2>Data Management</h2>
+        <p style="font-size: 18px; color: #666;">
+            This section will be implemented later for managing data lifecycle, including:
+        </p>
+        <ul style="font-size: 16px; color: #666;">
+            <li>Adding new products and reviews</li>
+            <li>Deleting old or obsolete data</li>
+            <li>Managing user data</li>
+            <li>Data import/export tools</li>
+            <li>Data quality checks and validation</li>
+        </ul>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+
+        // Tab switching functionality
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab-button').forEach(button => {
+                button.classList.remove('active');
+            });
+
+            // Show selected tab
+            if (tabName === 'monitoring') {
+                document.getElementById('monitoring-tab').classList.add('active');
+                document.querySelectorAll('.tab-button')[0].classList.add('active');
+            } else if (tabName === 'data-management') {
+                document.getElementById('data-management-tab').classList.add('active');
+                document.querySelectorAll('.tab-button')[1].classList.add('active');
+            }
+        }
+
+        // Load observations on page load
+        window.onload = function() {
+            loadObservations();
+        };
+
+        // Load observations from API
+        async function loadObservations() {
+            try {
+                const response = await fetch(`${API_BASE}/monitoring/observations`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load observations');
+                }
+
+                const data = await response.json();
+                displayStatistics(data.statistics);
+                displayObservationsTable(data.observations);
+            } catch (error) {
+                console.error('Error loading observations:', error);
+                alert('Error loading observations. Please make sure the API server is running.');
+            }
+        }
+
+        // Display statistics
+        function displayStatistics(stats) {
+            document.getElementById('statTotal').textContent = stats.total_observations || 0;
+            document.getElementById('statGood').textContent = stats.good_recommendations || 0;
+            document.getElementById('statBad').textContent = stats.bad_recommendations || 0;
+            document.getElementById('statPending').textContent = stats.pending_observations || 0;
+            document.getElementById('statGoodRatio').textContent = ((stats.good_ratio || 0) * 100).toFixed(1) + '%';
+            document.getElementById('statBadRatio').textContent = ((stats.bad_ratio || 0) * 100).toFixed(1) + '%';
+            document.getElementById('statUsers').textContent = stats.total_users || 0;
+        }
+
+        // Display observations table
+        function displayObservationsTable(observations) {
+            if (!observations || observations.length === 0) {
+                document.getElementById('observationsTable').innerHTML = '<p>No observations recorded yet.</p>';
+                return;
+            }
+
+            let html = '<table>';
+            html += '<thead><tr>';
+            html += '<th>User ID</th>';
+            html += '<th>Key</th>';
+            html += '<th>Type</th>';
+            html += '<th>Quality</th>';
+            html += '<th>Events</th>';
+            html += '<th>Recommendations Count</th>';
+            html += '<th>Created At</th>';
+            html += '<th>Updated At</th>';
+            html += '</tr></thead><tbody>';
+
+            observations.forEach(obs => {
+                const qualityClass = obs.good_or_bad || 'pending';
+                html += `<tr class="${qualityClass}">`;
+                html += `<td>${obs.user_id.substring(0, 8)}...</td>`;
+                html += `<td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${obs.key}</td>`;
+                html += `<td>${obs.key_type}</td>`;
+                html += `<td><strong>${(obs.good_or_bad || 'pending').toUpperCase()}</strong></td>`;
+                html += `<td>${obs.events.map(e => e.event_type).join(', ')}</td>`;
+                html += `<td>${obs.list_of_recommendations.length}</td>`;
+                html += `<td>${new Date(obs.created_at).toLocaleString()}</td>`;
+                html += `<td>${new Date(obs.updated_at).toLocaleString()}</td>`;
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+            document.getElementById('observationsTable').innerHTML = html;
+        }
+
+        // Clear all observations
+        async function clearAllObservations() {
+            if (!confirm('Are you sure you want to clear all observations? This action cannot be undone.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/monitoring/observations`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to clear observations');
+                }
+
+                alert('All observations cleared successfully');
+                loadObservations(); // Reload the data
+            } catch (error) {
+                console.error('Error clearing observations:', error);
+                alert('Error clearing observations. Please try again.');
+            }
+        }
+
+        // Go back to login page
+        function goBack() {
+            window.location.href = 'login.html';
+        }
+    </script>
+</body>
+</html>

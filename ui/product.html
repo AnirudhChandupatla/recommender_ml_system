@@ -39,6 +39,16 @@
         let currentProductId = '';
         let currentProductTitle = '';
 
+        // Tracking variables
+        let userId = sessionStorage.getItem('user_id') || 'anonymous';
+        let redirectedFrom = sessionStorage.getItem('redirected_from') || null;
+        let redirectedFromType = sessionStorage.getItem('redirected_from_type') || null;
+        let contentBasedRecommendations = [];
+        let collaborativeRecommendations = [];
+        let hasClickedRecommendation = false;
+        let hasScrolledToEndContent = false;
+        let hasScrolledToEndCollab = false;
+
         // Load product details on page load
         window.onload = function() {
             const urlParams = new URLSearchParams(window.location.search);
@@ -53,7 +63,112 @@
             loadProductDetails();
             loadContentBasedRecommendations();
             loadCollaborativeRecommendations();
+            setupScrollTracking();
         };
+
+        // Setup scroll tracking for recommendations
+        function setupScrollTracking() {
+            // Track scrolling in content-based recommendations
+            const contentDiv = document.getElementById('contentBasedRecommendations');
+            if (contentDiv) {
+                contentDiv.addEventListener('scroll', function() {
+                    if (contentDiv.scrollLeft + contentDiv.clientWidth >= contentDiv.scrollWidth - 50 && !hasScrolledToEndContent) {
+                        hasScrolledToEndContent = true;
+                        console.log('Scrolled to end of content-based recommendations');
+                        if (!hasClickedRecommendation && contentBasedRecommendations.length > 0) {
+                            trackScrollEnd('content_based');
+                        }
+                    }
+                });
+            }
+
+            // Track scrolling in collaborative recommendations
+            const collabDiv = document.getElementById('collaborativeRecommendations');
+            if (collabDiv) {
+                collabDiv.addEventListener('scroll', function() {
+                    if (collabDiv.scrollLeft + collabDiv.clientWidth >= collabDiv.scrollWidth - 50 && !hasScrolledToEndCollab) {
+                        hasScrolledToEndCollab = true;
+                        console.log('Scrolled to end of collaborative recommendations');
+                        if (!hasClickedRecommendation && collaborativeRecommendations.length > 0) {
+                            trackScrollEnd('collaborative');
+                        }
+                    }
+                });
+            }
+        }
+
+        // Track scroll to end event (bad indicator)
+        async function trackScrollEnd(recommendationType) {
+            const recommendations = recommendationType === 'content_based' ? contentBasedRecommendations : collaborativeRecommendations;
+            const recommendationIds = recommendations.map(r => r.product_id || r.item_id);
+
+            try {
+                await fetch(`${API_BASE}/tracking/event`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        user_id: userId,
+                        event_type: 'scroll_end',
+                        key: currentProductId,
+                        key_type: 'parent_asin',
+                        list_of_recommendations: recommendationIds,
+                        redirected_from: redirectedFrom || currentProductId
+                    })
+                });
+                console.log(`Tracked: scroll_end event for ${recommendationType}`);
+            } catch (error) {
+                console.error('Error tracking scroll_end:', error);
+            }
+        }
+
+        // Track recommendation click event (good indicator)
+        async function trackRecommendationClick(clickedProductId) {
+            const allRecommendationIds = [
+                ...contentBasedRecommendations.map(r => r.product_id || r.item_id),
+                ...collaborativeRecommendations.map(r => r.product_id || r.item_id)
+            ];
+
+            try {
+                await fetch(`${API_BASE}/tracking/event`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        user_id: userId,
+                        event_type: 'click_product',
+                        key: currentProductId,
+                        key_type: 'parent_asin',
+                        list_of_recommendations: allRecommendationIds,
+                        redirected_to: clickedProductId,
+                        redirected_from: currentProductId
+                    })
+                });
+                console.log('Tracked: recommendation click event for', clickedProductId);
+            } catch (error) {
+                console.error('Error tracking recommendation click:', error);
+            }
+        }
+
+        // Track purchase event (good indicator)
+        async function trackPurchase() {
+            try {
+                await fetch(`${API_BASE}/tracking/event`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        user_id: userId,
+                        event_type: 'purchase',
+                        key: currentProductId,
+                        key_type: 'parent_asin',
+                        list_of_recommendations: [],
+                        redirected_to: currentProductId,
+                        redirected_from: redirectedFrom || 'direct'
+                    })
+                });
+                console.log('Tracked: purchase event for', currentProductId);
+            } catch (error) {
+                console.error('Error tracking purchase:', error);
+            }
+        }
 
         // Load product details
         async function loadProductDetails() {
@@ -177,6 +292,7 @@
                 // Filter out the current product from recommendations
                 const recommendations = (data.results || []).filter(item => item.product_id !== currentProductId);
 
+                contentBasedRecommendations = recommendations;
                 displayRecommendations(recommendations, 'contentBasedRecommendations');
             } catch (error) {
                 console.error('Error loading content-based recommendations:', error);
@@ -210,6 +326,7 @@
                 const data = await response.json();
                 const recommendations = data.recommendations || [];
 
+                collaborativeRecommendations = recommendations;
                 displayRecommendations(recommendations, 'collaborativeRecommendations');
             } catch (error) {
                 console.error('Error loading collaborative recommendations:', error);
@@ -256,6 +373,14 @@
 
         // Navigate to product page
         function viewProduct(productId) {
+            // Track if this is a recommendation click
+            hasClickedRecommendation = true;
+            trackRecommendationClick(productId);
+
+            // Store context for next product page
+            sessionStorage.setItem('redirected_from', currentProductId);
+            sessionStorage.setItem('redirected_from_type', 'parent_asin');
+
             window.location.href = `product.html?id=${productId}`;
         }
 
@@ -264,9 +389,12 @@
             window.location.href = 'landing.html';
         }
 
-        // Buy and Rate functionality (placeholder)
+        // Buy and Rate functionality
         function buyAndRate() {
-            alert('Buy & Rate functionality will be implemented when working on admin features.');
+            // Track purchase event
+            trackPurchase();
+
+            alert(`Thank you for your purchase of "${currentProductTitle}"!\n\nYour purchase has been tracked for model monitoring.`);
         }
     </script>
 </body>
