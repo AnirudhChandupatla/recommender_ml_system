@@ -130,6 +130,7 @@
 
         <div class="controls">
             <button class="button" onclick="loadObservations()">Refresh Data</button>
+            <button class="button" onclick="exportGoodRecommendations()" style="background-color: #2196F3;">Export Good Recommendations</button>
             <button class="button danger" onclick="clearAllObservations()">Clear All Observations</button>
         </div>
 
@@ -262,6 +263,8 @@
             html += '<th>Quality</th>';
             html += '<th>Events</th>';
             html += '<th>Recommendations Count</th>';
+            html += '<th>Next Product</th>';
+            html += '<th>Rating</th>';
             html += '<th>Created At</th>';
             html += '<th>Updated At</th>';
             html += '</tr></thead><tbody>';
@@ -275,6 +278,8 @@
                 html += `<td><strong>${(obs.good_or_bad || 'pending').toUpperCase()}</strong></td>`;
                 html += `<td>${obs.events.map(e => e.event_type).join(', ')}</td>`;
                 html += `<td>${obs.list_of_recommendations.length}</td>`;
+                html += `<td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis;">${obs.next_parent_asin || '-'}</td>`;
+                html += `<td>${obs.rating !== null && obs.rating !== undefined ? obs.rating.toFixed(1) : 'N/A'}</td>`;
                 html += `<td>${new Date(obs.created_at).toLocaleString()}</td>`;
                 html += `<td>${new Date(obs.updated_at).toLocaleString()}</td>`;
                 html += '</tr>';
@@ -307,6 +312,96 @@
             } catch (error) {
                 console.error('Error clearing observations:', error);
                 alert('Error clearing observations. Please try again.');
+            }
+        }
+
+        // Export good recommendations as CSV
+        async function exportGoodRecommendations() {
+            try {
+                const response = await fetch(`${API_BASE}/monitoring/observations`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load observations');
+                }
+
+                const data = await response.json();
+                const observations = data.observations;
+
+                // Filter: good_or_bad = 'good' AND has next_parent_asin
+                const goodObservationsWithNext = observations.filter(obs =>
+                    obs.good_or_bad === 'good' && obs.next_parent_asin
+                );
+
+                if (goodObservationsWithNext.length === 0) {
+                    alert('No good recommendations with next product to export.');
+                    return;
+                }
+
+                // Create CSV content
+                let csvContent = 'user_id,parent_asin,rating\n';
+                let successCount = 0;
+                let errorCount = 0;
+
+                // Fetch rating for each next product
+                for (const obs of goodObservationsWithNext) {
+                    try {
+                        const userId = obs.user_id;
+                        const nextProductAsin = obs.next_parent_asin;
+
+                        // Fetch the product details to get the actual rating
+                        const productResponse = await fetch(`${API_BASE}/products/${nextProductAsin}`, {
+                            method: 'GET',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            }
+                        });
+
+                        if (productResponse.ok) {
+                            const product = await productResponse.json();
+                            const rating = product.rating !== null && product.rating !== undefined ? product.rating : 'N/A';
+                            csvContent += `${userId},${nextProductAsin},${rating}\n`;
+                            successCount++;
+                        } else {
+                            console.warn(`Product ${nextProductAsin} not found, skipping.`);
+                            errorCount++;
+                        }
+                    } catch (error) {
+                        console.error(`Error fetching product ${obs.next_parent_asin}:`, error);
+                        errorCount++;
+                    }
+                }
+
+                if (successCount === 0) {
+                    alert('No valid products found to export.');
+                    return;
+                }
+
+                // Create download link
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+
+                link.setAttribute('href', url);
+                link.setAttribute('download', `good_recommendations_${new Date().toISOString().split('T')[0]}.csv`);
+                link.style.visibility = 'hidden';
+
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                let message = `Successfully exported ${successCount} good recommendations!`;
+                if (errorCount > 0) {
+                    message += `\n\n${errorCount} entries were skipped due to missing product data.`;
+                }
+                alert(message);
+            } catch (error) {
+                console.error('Error exporting good recommendations:', error);
+                alert('Error exporting good recommendations. Please try again.');
             }
         }
 

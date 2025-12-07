@@ -48,6 +48,10 @@
         let hasClickedRecommendation = false;
         let hasScrolledToEndContent = false;
         let hasScrolledToEndCollab = false;
+        let hasTrackedPageVisit = false;
+        let hasPurchased = false;
+        let recommendationsLoaded = false;
+        let allRecommendationIds = [];
 
         // Load product details on page load
         window.onload = function() {
@@ -61,10 +65,55 @@
             }
 
             loadProductDetails();
-            loadContentBasedRecommendations();
-            loadCollaborativeRecommendations();
+
+            // Load recommendations and wait for them to complete
+            Promise.all([
+                loadContentBasedRecommendations(),
+                loadCollaborativeRecommendations()
+            ]).then(() => {
+                recommendationsLoaded = true;
+                allRecommendationIds = [
+                    ...contentBasedRecommendations.map(r => r.product_id || r.item_id),
+                    ...collaborativeRecommendations.map(r => r.product_id || r.item_id)
+                ];
+                console.log('All recommendations loaded:', allRecommendationIds.length);
+
+                // Track page visit with neutral rating after 3 seconds if no purchase
+                setTimeout(function() {
+                    if (!hasPurchased && !hasTrackedPageVisit) {
+                        trackPageVisit();
+                    }
+                }, 3000);
+            });
+
             setupScrollTracking();
         };
+
+        // Track page visit with neutral rating (3)
+        async function trackPageVisit() {
+            hasTrackedPageVisit = true;
+
+            try {
+                await fetch(`${API_BASE}/tracking/event`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        user_id: userId,
+                        event_type: 'page_visit',
+                        key: currentProductId,
+                        key_type: 'parent_asin',
+                        list_of_recommendations: allRecommendationIds,
+                        redirected_to: currentProductId,
+                        redirected_from: redirectedFrom || 'direct',
+                        next_parent_asin: null,
+                        rating: 3.0  // Neutral rating for page visit
+                    })
+                });
+                console.log('Tracked: page_visit event with neutral rating and', allRecommendationIds.length, 'recommendations');
+            } catch (error) {
+                console.error('Error tracking page visit:', error);
+            }
+        }
 
         // Setup scroll tracking for recommendations
         function setupScrollTracking() {
@@ -99,9 +148,6 @@
 
         // Track scroll to end event (bad indicator)
         async function trackScrollEnd(recommendationType) {
-            const recommendations = recommendationType === 'content_based' ? contentBasedRecommendations : collaborativeRecommendations;
-            const recommendationIds = recommendations.map(r => r.product_id || r.item_id);
-
             try {
                 await fetch(`${API_BASE}/tracking/event`, {
                     method: 'POST',
@@ -111,11 +157,12 @@
                         event_type: 'scroll_end',
                         key: currentProductId,
                         key_type: 'parent_asin',
-                        list_of_recommendations: recommendationIds,
-                        redirected_from: redirectedFrom || currentProductId
+                        list_of_recommendations: allRecommendationIds,
+                        redirected_from: redirectedFrom || currentProductId,
+                        next_parent_asin: null
                     })
                 });
-                console.log(`Tracked: scroll_end event for ${recommendationType}`);
+                console.log(`Tracked: scroll_end event for ${recommendationType} with`, allRecommendationIds.length, 'recommendations');
             } catch (error) {
                 console.error('Error tracking scroll_end:', error);
             }
@@ -123,11 +170,6 @@
 
         // Track recommendation click event (good indicator)
         async function trackRecommendationClick(clickedProductId) {
-            const allRecommendationIds = [
-                ...contentBasedRecommendations.map(r => r.product_id || r.item_id),
-                ...collaborativeRecommendations.map(r => r.product_id || r.item_id)
-            ];
-
             try {
                 await fetch(`${API_BASE}/tracking/event`, {
                     method: 'POST',
@@ -139,17 +181,20 @@
                         key_type: 'parent_asin',
                         list_of_recommendations: allRecommendationIds,
                         redirected_to: clickedProductId,
-                        redirected_from: currentProductId
+                        redirected_from: currentProductId,
+                        next_parent_asin: clickedProductId
                     })
                 });
-                console.log('Tracked: recommendation click event for', clickedProductId);
+                console.log('Tracked: recommendation click event for', clickedProductId, 'with next_parent_asin');
             } catch (error) {
                 console.error('Error tracking recommendation click:', error);
             }
         }
 
-        // Track purchase event (good indicator)
-        async function trackPurchase() {
+        // Track purchase event with rating (good indicator)
+        async function trackPurchase(rating) {
+            hasPurchased = true;
+
             try {
                 await fetch(`${API_BASE}/tracking/event`, {
                     method: 'POST',
@@ -159,12 +204,14 @@
                         event_type: 'purchase',
                         key: currentProductId,
                         key_type: 'parent_asin',
-                        list_of_recommendations: [],
+                        list_of_recommendations: allRecommendationIds,
                         redirected_to: currentProductId,
-                        redirected_from: redirectedFrom || 'direct'
+                        redirected_from: redirectedFrom || 'direct',
+                        next_parent_asin: null,
+                        rating: rating
                     })
                 });
-                console.log('Tracked: purchase event for', currentProductId);
+                console.log('Tracked: purchase event with rating', rating, 'and', allRecommendationIds.length, 'recommendations');
             } catch (error) {
                 console.error('Error tracking purchase:', error);
             }
@@ -389,12 +436,28 @@
             window.location.href = 'landing.html';
         }
 
-        // Buy and Rate functionality
+        // Buy and Rate functionality with rating pop-up
         function buyAndRate() {
-            // Track purchase event
-            trackPurchase();
+            // Show rating selection dialog
+            let rating = null;
+            let ratingInput = prompt(`Please rate "${currentProductTitle}" (1-5 stars):\n\n1 = Poor\n2 = Fair\n3 = Good\n4 = Very Good\n5 = Excellent`, '5');
 
-            alert(`Thank you for your purchase of "${currentProductTitle}"!\n\nYour purchase has been tracked for model monitoring.`);
+            if (ratingInput === null) {
+                // User cancelled
+                return;
+            }
+
+            // Validate rating
+            rating = parseFloat(ratingInput);
+            if (isNaN(rating) || rating < 1 || rating > 5) {
+                alert('Invalid rating! Please enter a number between 1 and 5.');
+                return;
+            }
+
+            // Track purchase event with rating
+            trackPurchase(rating);
+
+            alert(`Thank you for your purchase of "${currentProductTitle}"!\n\nYour rating: ${rating} stars\n\nYour purchase has been tracked for model monitoring.`);
         }
     </script>
 </body>

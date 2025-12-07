@@ -1,8 +1,8 @@
 {
   "observations": [
     {
-      "observation_id": "748958d2-6d9c-468a-801e-ae73a9ed66f4:washing machine:query_str",
-      "user_id": "748958d2-6d9c-468a-801e-ae73a9ed66f4",
+      "observation_id": "0234bedd-71f8-4e7c-96dd-28b824102159:washing machine:query_str",
+      "user_id": "0234bedd-71f8-4e7c-96dd-28b824102159",
       "key": "washing machine",
       "key_type": "query_str",
       "list_of_recommendations": [
@@ -1008,42 +1008,32 @@
         "B074R7GK8V"
       ],
       "redirected_from": "washing machine",
+      "next_parent_asin": "B014K6AS4C",
       "events": [
         {
           "event_type": "click_product",
           "redirected_to": "B014K6AS4C",
-          "timestamp": "2025-12-07T13:59:00.821022"
+          "rating": null,
+          "timestamp": "2025-12-07T15:38:56.746725"
+        },
+        {
+          "event_type": "click_product",
+          "redirected_to": "B014K6AS4C",
+          "rating": null,
+          "timestamp": "2025-12-07T15:39:40.125698"
         }
       ],
+      "rating": null,
       "good_or_bad": "good",
-      "created_at": "2025-12-07T13:59:00.821073",
-      "updated_at": "2025-12-07T13:59:00.821080"
+      "created_at": "2025-12-07T15:38:56.746813",
+      "updated_at": "2025-12-07T15:39:40.125725"
     },
     {
-      "observation_id": "748958d2-6d9c-468a-801e-ae73a9ed66f4:B014K6AS4C:parent_asin",
-      "user_id": "748958d2-6d9c-468a-801e-ae73a9ed66f4",
+      "observation_id": "0234bedd-71f8-4e7c-96dd-28b824102159:B014K6AS4C:parent_asin",
+      "user_id": "0234bedd-71f8-4e7c-96dd-28b824102159",
       "key": "B014K6AS4C",
       "key_type": "parent_asin",
       "list_of_recommendations": [
-        "B08R9G5NTL",
-        "B00529N23G",
-        "B00076ODOQ",
-        "B0BS3P66KL",
-        "B097H8XKYQ",
-        "B0B5F7VVJB",
-        "B0BWBF4MN1",
-        "B08CDSGKXW",
-        "B08WZC8837",
-        "B09KTDB8Z8",
-        "B08Z35PRKM",
-        "B09XR2584Z",
-        "B08Y5QWGKS",
-        "B0BJ2CJTB5",
-        "B08ZCCQJWY",
-        "B08Z32HNRV",
-        "B08ZCJDB24",
-        "B00F0OT5UW",
-        "B093145GW7",
         "B014K6AS4C",
         "B077Y8DMHK",
         "B009TM0L9U",
@@ -1065,21 +1055,36 @@
         "B0BLGRXJVS",
         "B09QGX4VG4"
       ],
-      "redirected_from": "B014K6AS4C",
+      "redirected_from": "washing machine",
+      "next_parent_asin": "B01HC1SCC2",
       "events": [
+        {
+          "event_type": "page_visit",
+          "redirected_to": "B014K6AS4C",
+          "rating": 3.0,
+          "timestamp": "2025-12-07T15:39:08.003324"
+        },
+        {
+          "event_type": "page_visit",
+          "redirected_to": "B014K6AS4C",
+          "rating": 3.0,
+          "timestamp": "2025-12-07T15:39:43.432425"
+        },
         {
           "event_type": "click_product",
           "redirected_to": "B01HC1SCC2",
-          "timestamp": "2025-12-07T13:59:19.580559"
+          "rating": null,
+          "timestamp": "2025-12-07T15:39:46.995368"
         }
       ],
+      "rating": 3.0,
       "good_or_bad": "good",
-      "created_at": "2025-12-07T13:59:19.580596",
-      "updated_at": "2025-12-07T13:59:19.580603"
+      "created_at": "2025-12-07T15:39:08.003363",
+      "updated_at": "2025-12-07T15:39:46.995396"
     },
     {
-      "observation_id": "748958d2-6d9c-468a-801e-ae73a9ed66f4:B01HC1SCC2:parent_asin",
-      "user_id": "748958d2-6d9c-468a-801e-ae73a9ed66f4",
+      "observation_id": "0234bedd-71f8-4e7c-96dd-28b824102159:B01HC1SCC2:parent_asin",
+      "user_id": "0234bedd-71f8-4e7c-96dd-28b824102159",
       "key": "B01HC1SCC2",
       "key_type": "parent_asin",
       "list_of_recommendations": [
@@ -1101,25 +1106,127 @@
         "B07Y2X4XN2",
         "B0C6JTXTXW",
         "B08F3HLKZC",
-        "B098R1W4K7"
+        "B098R1W4K7",
+        "B01HC1SCC2",
+        "B0150X71NU",
+        "B014K6AS4C",
+        "B00F57WGK0",
+        "B00SXDTMUA",
+        "B077Y8DMHK",
+        "B009TM0L9U",
+        "B08BZRQSJW",
+        "B004YUZMYQ",
+        "B00KRF4XGA",
+        "B01JB8LSTS",
+        "B003FW3WKK",
+        "B00AKHRVNW",
+        "B00F0OT5UW",
+        "B0043RME8M",
+        "B006BYHPKW",
+        "B0BLGRXJVS",
+        "B09QGX4VG4",
+        "B0BM8XDBDY",
+        "B00LWZMC7G"
       ],
       "redirected_from": "B014K6AS4C",
+      "next_parent_asin": "B00KRF4XGA",
       "events": [
+        {
+          "event_type": "purchase",
+          "redirected_to": "B01HC1SCC2",
+          "rating": 5.0,
+          "timestamp": "2025-12-07T15:39:50.147346"
+        },
+        {
+          "event_type": "click_product",
+          "redirected_to": "B00KRF4XGA",
+          "rating": null,
+          "timestamp": "2025-12-07T15:39:56.265031"
+        }
+      ],
+      "rating": 5.0,
+      "good_or_bad": "good",
+      "created_at": "2025-12-07T15:39:50.147377",
+      "updated_at": "2025-12-07T15:39:56.265058"
+    },
+    {
+      "observation_id": "0234bedd-71f8-4e7c-96dd-28b824102159:B00KRF4XGA:parent_asin",
+      "user_id": "0234bedd-71f8-4e7c-96dd-28b824102159",
+      "key": "B00KRF4XGA",
+      "key_type": "parent_asin",
+      "list_of_recommendations": [
+        "B07NYV9RQB",
+        "B06XSD2CMC",
+        "B08F4QJL2W",
+        "B01H6C2LTW",
+        "B0895WBGNK",
+        "B08CNF5NLN",
+        "B0B5F7VVJB",
+        "B0995STLJ6",
+        "B08Q7LZLVL",
+        "B085N7N19P",
+        "B07YQFM7MV",
+        "B0BQMN426Y",
+        "B09Y21BXR5",
+        "B00XYVE4B8",
+        "B084D2FRZ8",
+        "B0C2K7C29Z",
+        "B08XH7CDMB",
+        "B0791G51F2",
+        "B08WZC8837",
+        "B00KRF4XGA",
+        "B004YUZMYQ",
+        "B08BZRQSJW",
+        "B009TM0L9U",
+        "B077Y8DMHK",
+        "B003FW3WKK",
+        "B00F0OT5UW",
+        "B00F57WGK0",
+        "B014K6AS4C",
+        "B002HT0958",
+        "B006BYHPKW",
+        "B00ECV5TJ0",
+        "B09X384HTM",
+        "B000A6VIKU",
+        "B00O85N7WG",
+        "B08VGCX4LW",
+        "B00AKHRVNW",
+        "B005GM942C",
+        "B010RDR8FE",
+        "B00JUDZ1MK"
+      ],
+      "redirected_from": "B01HC1SCC2",
+      "next_parent_asin": null,
+      "events": [
+        {
+          "event_type": "page_visit",
+          "redirected_to": "B00KRF4XGA",
+          "rating": 3.0,
+          "timestamp": "2025-12-07T15:39:59.560585"
+        },
         {
           "event_type": "scroll_end",
           "redirected_to": null,
-          "timestamp": "2025-12-07T13:59:28.705062"
+          "rating": null,
+          "timestamp": "2025-12-07T15:39:59.741482"
+        },
+        {
+          "event_type": "scroll_end",
+          "redirected_to": null,
+          "rating": null,
+          "timestamp": "2025-12-07T15:40:01.394674"
         }
       ],
+      "rating": 3.0,
       "good_or_bad": "bad",
-      "created_at": "2025-12-07T13:59:28.705091",
-      "updated_at": "2025-12-07T13:59:28.705098"
+      "created_at": "2025-12-07T15:39:59.560616",
+      "updated_at": "2025-12-07T15:40:01.394695"
     }
   ],
   "user_sessions": {
-    "748958d2-6d9c-468a-801e-ae73a9ed66f4": {
-      "created_at": "2025-12-07T13:59:00.821088",
-      "observation_count": 3
+    "0234bedd-71f8-4e7c-96dd-28b824102159": {
+      "created_at": "2025-12-07T15:38:56.746840",
+      "observation_count": 4
     }
   }
 }

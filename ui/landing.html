@@ -109,10 +109,11 @@
                         key_type: 'query_str',
                         list_of_recommendations: displayedProductIds,
                         redirected_to: productId,
-                        redirected_from: currentSearchQuery
+                        redirected_from: currentSearchQuery,
+                        next_parent_asin: productId
                     })
                 });
-                console.log('Tracked: click_product event for', productId);
+                console.log('Tracked: click_product event for', productId, 'with next_parent_asin');
             } catch (error) {
                 console.error('Error tracking click:', error);
             }

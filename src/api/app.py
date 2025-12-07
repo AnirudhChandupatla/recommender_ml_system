@@ -160,12 +160,14 @@ class AdminOperationResponse(BaseModel):
 class TrackingEvent(BaseModel):
     """Request model for tracking user behavior events."""
     user_id: str = Field(..., description="User session UUID")
-    event_type: str = Field(..., description="Event type: click_product, scroll_end, purchase, page_load")
+    event_type: str = Field(..., description="Event type: click_product, scroll_end, purchase, page_load, page_visit")
     key: str = Field(..., description="Query string or parent_asin")
     key_type: str = Field(..., description="Type: query_str or parent_asin")
     list_of_recommendations: List[str] = Field(default=[], description="List of recommended product ASINs")
     redirected_to: Optional[str] = Field(None, description="Product ASIN user clicked/redirected to")
     redirected_from: Optional[str] = Field(None, description="Source: query string or parent_asin")
+    next_parent_asin: Optional[str] = Field(None, description="Next product ASIN user redirected to")
+    rating: Optional[float] = Field(None, description="User rating (1-5) for purchase or neutral rating (3) for visit")
     timestamp: Optional[str] = Field(None, description="ISO timestamp of event")
 
 
@@ -177,7 +179,9 @@ class ObservationRecord(BaseModel):
     key_type: str
     list_of_recommendations: List[str]
     redirected_from: Optional[str]
+    next_parent_asin: Optional[str] = None  # Next product user redirected to
     events: List[Dict[str, Any]]  # List of all events for this observation
+    rating: Optional[float] = None  # User rating or neutral rating
     good_or_bad: Optional[str] = None  # Derived: "good", "bad", or "pending"
     created_at: str
     updated_at: str
@@ -1159,6 +1163,7 @@ async def track_event(event: TrackingEvent):
         event_data = {
             "event_type": event.event_type,
             "redirected_to": event.redirected_to,
+            "rating": event.rating,
             "timestamp": event.timestamp
         }
 
@@ -1167,6 +1172,16 @@ async def track_event(event: TrackingEvent):
             existing_obs["events"].append(event_data)
             existing_obs["updated_at"] = datetime.utcnow().isoformat()
             existing_obs["good_or_bad"] = determine_recommendation_quality(existing_obs["events"])
+            # Update rating if provided (prefer purchase rating over visit rating)
+            if event.rating is not None:
+                if event.event_type == "purchase" or existing_obs.get("rating") is None:
+                    existing_obs["rating"] = event.rating
+            # Update next_parent_asin if provided
+            if event.next_parent_asin is not None:
+                existing_obs["next_parent_asin"] = event.next_parent_asin
+            # Update list_of_recommendations if provided and current is empty
+            if event.list_of_recommendations and not existing_obs.get("list_of_recommendations"):
+                existing_obs["list_of_recommendations"] = event.list_of_recommendations
         else:
             # Create new observation
             new_obs = {
@@ -1176,7 +1191,9 @@ async def track_event(event: TrackingEvent):
                 "key_type": event.key_type,
                 "list_of_recommendations": event.list_of_recommendations,
                 "redirected_from": event.redirected_from,
+                "next_parent_asin": event.next_parent_asin,
                 "events": [event_data],
+                "rating": event.rating,
                 "good_or_bad": determine_recommendation_quality([event_data]),
                 "created_at": datetime.utcnow().isoformat(),
                 "updated_at": datetime.utcnow().isoformat()
