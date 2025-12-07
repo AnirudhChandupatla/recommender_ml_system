@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Catalog - Recommender System</title>
+</head>
+<body>
+    <h1>Product Catalog</h1>
+    <hr>
+
+    <!-- Search Bar -->
+    <div>
+        <input type="text" id="searchQuery" placeholder="Search for products..." style="width: 500px; padding: 10px; font-size: 16px;">
+        <button onclick="searchProducts()" style="padding: 10px 20px; font-size: 16px;">GO</button>
+        <button onclick="clearSearch()" style="padding: 10px 20px; font-size: 16px;">Clear</button>
+    </div>
+    <br>
+    <div id="searchInfo"></div>
+    <hr>
+
+    <!-- Products List -->
+    <div id="productsList"></div>
+
+    <!-- Pagination Controls -->
+    <hr>
+    <div id="paginationControls">
+        <button onclick="previousPage()" style="padding: 10px 20px; font-size: 16px;">Previous</button>
+        <span id="pageInfo" style="margin: 0 20px; font-size: 16px;"></span>
+        <button onclick="nextPage()" style="padding: 10px 20px; font-size: 16px;">Next</button>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        const ITEMS_PER_PAGE = 100;
+
+        let allProducts = [];
+        let currentPage = 0;
+        let isSearchResults = false;
+
+        // Load all products on page load
+        window.onload = function() {
+            loadAllProducts();
+        };
+
+        // Load all products from catalog
+        async function loadAllProducts() {
+            try {
+                // Use optimized /products/all endpoint instead of /search for better performance
+                const response = await fetch(`${API_BASE}/products/all`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load products');
+                }
+
+                const data = await response.json();
+                allProducts = data.results || [];
+                currentPage = 0;
+                isSearchResults = false;
+
+                document.getElementById('searchInfo').innerHTML = '';
+                displayCurrentPage();
+            } catch (error) {
+                console.error('Error loading products:', error);
+                document.getElementById('productsList').innerHTML = '<p>Error loading products. Please make sure the API server is running.</p>';
+            }
+        }
+
+        // Search products
+        async function searchProducts() {
+            const query = document.getElementById('searchQuery').value.trim();
+
+            if (!query) {
+                alert('Please enter a search query');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: query
+                        // No top_k parameter - returns all matching products
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Search failed');
+                }
+
+                const data = await response.json();
+                allProducts = data.results || [];
+                currentPage = 0;
+                isSearchResults = true;
+
+                document.getElementById('searchInfo').innerHTML = `<strong>Search results for "${query}" - Found ${allProducts.length} products</strong>`;
+                displayCurrentPage();
+            } catch (error) {
+                console.error('Error searching products:', error);
+                alert('Search failed. Please try again.');
+            }
+        }
+
+        // Clear search and reload all products
+        function clearSearch() {
+            document.getElementById('searchQuery').value = '';
+            loadAllProducts();
+        }
+
+        // Display current page of products
+        function displayCurrentPage() {
+            const start = currentPage * ITEMS_PER_PAGE;
+            const end = start + ITEMS_PER_PAGE;
+            const pageProducts = allProducts.slice(start, end);
+
+            let html = '<table border="1" cellpadding="10" cellspacing="0" style="width: 100%; border-collapse: collapse;">';
+            html += '<thead><tr>';
+            html += '<th>Image</th>';
+            html += '<th>Title</th>';
+            html += '<th>Rating</th>';
+            html += '<th>Price</th>';
+            html += '<th>Action</th>';
+            html += '</tr></thead><tbody>';
+
+            if (pageProducts.length === 0) {
+                html += '<tr><td colspan="5" style="text-align: center;">No products found</td></tr>';
+            } else {
+                pageProducts.forEach(product => {
+                    html += '<tr>';
+
+                    // Image
+                    html += '<td style="width: 100px;">';
+                    if (product.image_url) {
+                        html += `<img src="${product.image_url}" alt="${product.title}" style="max-width: 80px; max-height: 80px;">`;
+                    } else {
+                        html += 'No Image';
+                    }
+                    html += '</td>';
+
+                    // Title
+                    html += `<td>${product.title}</td>`;
+
+                    // Rating
+                    html += '<td style="text-align: center;">';
+                    if (product.rating !== null && product.rating !== undefined) {
+                        html += `${product.rating.toFixed(1)} / 5.0`;
+                    } else {
+                        html += 'N/A';
+                    }
+                    html += '</td>';
+
+                    // Price
+                    html += '<td style="text-align: right;">';
+                    if (product.price !== null && product.price !== undefined) {
+                        html += `$${product.price.toFixed(2)}`;
+                    } else {
+                        html += 'N/A';
+                    }
+                    html += '</td>';
+
+                    // Action
+                    html += `<td><button onclick="viewProduct('${product.product_id}')">View Details</button></td>`;
+
+                    html += '</tr>';
+                });
+            }
+
+            html += '</tbody></table>';
+            document.getElementById('productsList').innerHTML = html;
+
+            // Update pagination info
+            const totalPages = Math.ceil(allProducts.length / ITEMS_PER_PAGE);
+            document.getElementById('pageInfo').innerHTML = `Page ${currentPage + 1} of ${totalPages} (${allProducts.length} total items)`;
+        }
+
+        // Navigate to previous page
+        function previousPage() {
+            if (currentPage > 0) {
+                currentPage--;
+                displayCurrentPage();
+                window.scrollTo(0, 0);
+            }
+        }
+
+        // Navigate to next page
+        function nextPage() {
+            const totalPages = Math.ceil(allProducts.length / ITEMS_PER_PAGE);
+            if (currentPage < totalPages - 1) {
+                currentPage++;
+                displayCurrentPage();
+                window.scrollTo(0, 0);
+            }
+        }
+
+        // View product details
+        function viewProduct(productId) {
+            window.location.href = `product.html?id=${productId}`;
+        }
+    </script>
+</body>
+</html>

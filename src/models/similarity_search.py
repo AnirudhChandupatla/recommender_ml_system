@@ -71,19 +71,23 @@ class SimilaritySearchModel:
 
         print(f"Index built with {self.index.ntotal} vectors")
 
-    def search(self, query: str, top_k: int = 10) -> List[Dict[str, Any]]:
+    def search(self, query: str, top_k: Optional[int] = 10) -> List[Dict[str, Any]]:
         """
         Search for similar product titles.
 
         Args:
             query: Search query string
-            top_k: Number of results to return
+            top_k: Number of results to return. If None, returns all products.
 
         Returns:
             List of search results with product_id, title, and score
         """
         if self.encoder is None or self.index is None:
             raise ValueError("Model not trained. Call train() first or load a trained model.")
+
+        # If top_k is None, return all products
+        if top_k is None:
+            top_k = self.index.ntotal
 
         # Encode query
         query_embedding = self.encoder.encode(

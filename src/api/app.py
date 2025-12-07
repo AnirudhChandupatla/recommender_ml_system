@@ -4,6 +4,8 @@ Provides endpoints for training and inference.
 """
 from fastapi import FastAPI, HTTPException, BackgroundTasks, File, UploadFile
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import os
@@ -25,6 +27,21 @@ app = FastAPI(
     description="API for product recommendations using Matrix Factorization and Similarity Search",
     version="1.0.0"
 )
+
+# Enable CORS for frontend
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins for development
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Mount static files (UI directory)
+# Get the path to the UI directory (two levels up from this file)
+UI_DIR = Path(__file__).parent.parent.parent / "ui"
+if UI_DIR.exists():
+    app.mount("/ui", StaticFiles(directory=str(UI_DIR)), name="ui")
 
 # Global model instances
 mf_model = None
@@ -63,7 +80,7 @@ class UserRecommendationRequest(BaseModel):
 class SearchRequest(BaseModel):
     """Request model for similarity search."""
     query: str = Field(..., description="Search query")
-    top_k: int = Field(10, ge=1, le=50, description="Number of results")
+    top_k: Optional[int] = Field(default=None, description="Number of results (1-5000). If not provided, defaults to 1000. Use GET /products/all for the full catalog.")
 
 
 class RecommendationItem(BaseModel):
@@ -85,6 +102,9 @@ class SearchResult(BaseModel):
     title: str
     score: float
     image_url: Optional[str] = None
+    rating: Optional[float] = None
+    price: Optional[float] = None
+    description: Optional[List[str]] = None
 
 
 class SearchResponse(BaseModel):
@@ -177,10 +197,17 @@ def enrich_with_product_info(recommendations: List[Dict[str, Any]], db: Recommen
     Returns:
         List of enriched RecommendationItem objects
     """
+    if not recommendations:
+        return []
+
+    # Batch lookup all products in a single query for performance
+    item_ids = [rec['item_id'] for rec in recommendations]
+    products_map = db.get_products_by_asins(item_ids)
+
     enriched = []
     for rec in recommendations:
         item_id = rec['item_id']
-        product = db.get_product_by_asin(item_id)
+        product = products_map.get(item_id)
 
         image_url = None
         title = None
@@ -202,7 +229,7 @@ def enrich_with_product_info(recommendations: List[Dict[str, Any]], db: Recommen
 
 def enrich_search_results(results: List[Dict[str, Any]], db: RecommenderDB) -> List[SearchResult]:
     """
-    Enrich search results with product images.
+    Enrich search results with product details.
 
     Args:
         results: List of search result dicts
@@ -211,22 +238,40 @@ def enrich_search_results(results: List[Dict[str, Any]], db: RecommenderDB) -> L
     Returns:
         List of enriched SearchResult objects
     """
+    if not results:
+        return []
+
+    # Batch lookup all products in a single query for performance
+    product_ids = [result['product_id'] for result in results]
+    products_map = db.get_products_by_asins(product_ids)
+
     enriched = []
     for result in results:
         product_id = result['product_id']
-        product = db.get_product_by_asin(product_id)
+        product = products_map.get(product_id)
 
         image_url = None
+        rating = None
+        price = None
+        description = None
+
         if product:
             images = product.get('images', [])
             if images and len(images) > 0:
                 image_url = images[0].get('large') or images[0].get('thumb')
 
+            rating = product.get('average_rating')
+            price = product.get('price')
+            description = product.get('description')
+
         enriched.append(SearchResult(
             product_id=product_id,
             title=result['title'],
             score=result['score'],
-            image_url=image_url
+            image_url=image_url,
+            rating=rating,
+            price=price,
+            description=description
         ))
 
     return enriched
@@ -244,7 +289,9 @@ async def root():
             "matrix_factor_similar": "/matrix_factor/similar",
             "matrix_factor_user": "/matrix_factor/user",
             "search": "/search",
-            "status": "/status"
+            "products_all": "/products/all",
+            "status": "/status",
+            "ui": "/ui/login.html"
         }
     }
 
@@ -429,6 +476,85 @@ async def get_user_recommendations(request: UserRecommendationRequest):
         raise HTTPException(status_code=500, detail=f"Recommendation failed: {str(e)}")
 
 
+@app.get("/products/all", response_model=SearchResponse)
+async def get_all_products():
+    """
+    Get all products from the catalog (optimized for landing page).
+    Returns products without semantic search ranking for better performance.
+
+    Returns:
+        List of all products with their details
+    """
+    db = initialize_db()
+
+    try:
+        # Get all products directly from database (much faster than similarity search)
+        products = db.get_all_products()
+
+        # Convert to SearchResult format
+        results = []
+        for product in products:
+            image_url = None
+            images = product.get('images', [])
+            if images and len(images) > 0:
+                image_url = images[0].get('large') or images[0].get('thumb')
+
+            results.append(SearchResult(
+                product_id=product['parent_asin'],
+                title=product['title'],
+                score=0.0,  # No relevance score for all products
+                image_url=image_url,
+                rating=product.get('average_rating'),
+                price=product.get('price'),
+                description=product.get('description')
+            ))
+
+        return SearchResponse(results=results)
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get products: {str(e)}")
+
+
+@app.get("/products/{product_id}", response_model=SearchResult)
+async def get_product_by_id(product_id: str):
+    """
+    Get a single product by ASIN (optimized for product detail page).
+
+    Args:
+        product_id: Product ASIN
+
+    Returns:
+        Product details
+    """
+    db = initialize_db()
+
+    try:
+        product = db.get_product_by_asin(product_id)
+
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Product {product_id} not found")
+
+        image_url = None
+        images = product.get('images', [])
+        if images and len(images) > 0:
+            image_url = images[0].get('large') or images[0].get('thumb')
+
+        return SearchResult(
+            product_id=product['parent_asin'],
+            title=product['title'],
+            score=0.0,
+            image_url=image_url,
+            rating=product.get('average_rating'),
+            price=product.get('price'),
+            description=product.get('description')
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to get product: {str(e)}")
+
+
 @app.post("/search", response_model=SearchResponse)
 async def search_products(request: SearchRequest):
     """
@@ -450,12 +576,35 @@ async def search_products(request: SearchRequest):
         )
 
     try:
-        results = model.search(request.query, top_k=request.top_k)
+        # Log the request for debugging
+        import traceback
+        print(f"Search request - query: '{request.query}', top_k: {request.top_k}")
+
+        # Validate and limit top_k for safety
+        top_k = request.top_k
+        if top_k is not None and (top_k < 1 or top_k > 5000):
+            raise HTTPException(status_code=400, detail="top_k must be between 1 and 5000")
+
+        # If top_k is None, limit to 1000 for reasonable performance
+        # For getting all products, use /products/all endpoint instead
+        if top_k is None:
+            top_k = 1000
+            print(f"top_k is None, limiting to {top_k} results")
+
+        results = model.search(request.query, top_k=top_k)
+        print(f"Search returned {len(results)} results")
+
         enriched = enrich_search_results(results, db)
+        print(f"Enrichment completed, returning {len(enriched)} results")
 
         return SearchResponse(results=enriched)
 
+    except HTTPException:
+        raise
     except Exception as e:
+        import traceback
+        print(f"Search error: {str(e)}")
+        print(traceback.format_exc())
         raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
 

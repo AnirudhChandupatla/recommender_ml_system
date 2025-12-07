@@ -212,6 +212,52 @@ class RecommenderDB:
                 return product
             return None
 
+    def get_products_by_asins(self, asins: List[str]) -> Dict[str, Dict[str, Any]]:
+        """
+        Get multiple products by ASINs in a single query (batch lookup for performance).
+        Handles large lists by chunking to avoid SQLite's variable limit (~999).
+
+        Args:
+            asins: List of product ASINs
+
+        Returns:
+            Dictionary mapping ASIN to product dictionary
+        """
+        if not asins:
+            return {}
+
+        products = {}
+        # SQLite has a limit of 999 variables, so chunk the requests
+        chunk_size = 500  # Use 500 to be safe
+
+        for i in range(0, len(asins), chunk_size):
+            chunk = asins[i:i + chunk_size]
+
+            with self.get_connection() as conn:
+                cursor = conn.cursor()
+                placeholders = ','.join('?' * len(chunk))
+                cursor.execute(f"""
+                    SELECT parent_asin, title, main_category, average_rating,
+                           rating_number, price, store, features, description,
+                           images, categories, details
+                    FROM product_catalog
+                    WHERE parent_asin IN ({placeholders})
+                """, chunk)
+
+                rows = cursor.fetchall()
+                for row in rows:
+                    product = dict(row)
+                    # Parse JSON fields
+                    for field in ['features', 'description', 'images', 'categories', 'details']:
+                        if product[field]:
+                            try:
+                                product[field] = json.loads(product[field])
+                            except json.JSONDecodeError:
+                                pass
+                    products[product['parent_asin']] = product
+
+        return products
+
     def get_user_ratings(self, user_id: str) -> List[Tuple[str, float]]:
         """
         Get all ratings for a specific user.

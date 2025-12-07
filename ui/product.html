@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details - Recommender System</title>
+</head>
+<body>
+    <h1>Product Details</h1>
+    <hr>
+
+    <div>
+        <button onclick="goBack()" style="padding: 10px 20px; font-size: 14px;">Back to Catalog</button>
+    </div>
+    <br>
+
+    <!-- Product Details -->
+    <div id="productDetails"></div>
+
+    <hr>
+
+    <!-- Content-Based Recommendations -->
+    <h2>Recommended: Similar Products (Content-Based)</h2>
+    <div id="contentBasedRecommendations" style="overflow-x: auto; white-space: nowrap;">
+        <p>Loading content-based recommendations...</p>
+    </div>
+
+    <hr>
+
+    <!-- Collaborative Filtering Recommendations -->
+    <h2>Recommended: Users Also Liked (Collaborative Filtering)</h2>
+    <div id="collaborativeRecommendations" style="overflow-x: auto; white-space: nowrap;">
+        <p>Loading collaborative filtering recommendations...</p>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+
+        let currentProductId = '';
+        let currentProductTitle = '';
+
+        // Load product details on page load
+        window.onload = function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            currentProductId = urlParams.get('id');
+
+            if (!currentProductId) {
+                alert('No product ID specified');
+                window.location.href = 'landing.html';
+                return;
+            }
+
+            loadProductDetails();
+            loadContentBasedRecommendations();
+            loadCollaborativeRecommendations();
+        };
+
+        // Load product details
+        async function loadProductDetails() {
+            try {
+                // Use optimized /products/{id} endpoint for better performance
+                const response = await fetch(`${API_BASE}/products/${currentProductId}`, {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        throw new Error('Product not found');
+                    }
+                    throw new Error('Failed to load product details');
+                }
+
+                const product = await response.json();
+                currentProductTitle = product.title;
+                displayProductDetails(product);
+            } catch (error) {
+                console.error('Error loading product details:', error);
+                document.getElementById('productDetails').innerHTML = '<p>Error loading product details.</p>';
+            }
+        }
+
+        // Display product details
+        function displayProductDetails(product) {
+            let html = '<table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse;">';
+
+            // Image and basic info row
+            html += '<tr>';
+            html += '<td rowspan="5" style="width: 300px; text-align: center; vertical-align: top;">';
+            if (product.image_url) {
+                html += `<img src="${product.image_url}" alt="${product.title}" style="max-width: 280px; max-height: 280px;">`;
+            } else {
+                html += '<p>No Image Available</p>';
+            }
+            html += '</td>';
+            html += `<td><strong>Product ID:</strong></td><td>${product.product_id}</td>`;
+            html += '</tr>';
+
+            // Title
+            html += '<tr>';
+            html += `<td><strong>Title:</strong></td><td>${product.title}</td>`;
+            html += '</tr>';
+
+            // Rating
+            html += '<tr>';
+            html += '<td><strong>Rating:</strong></td><td>';
+            if (product.rating !== null && product.rating !== undefined) {
+                html += `${product.rating.toFixed(1)} / 5.0`;
+            } else {
+                html += 'N/A';
+            }
+            html += '</td></tr>';
+
+            // Price
+            html += '<tr>';
+            html += '<td><strong>Price:</strong></td><td>';
+            if (product.price !== null && product.price !== undefined) {
+                html += `$${product.price.toFixed(2)}`;
+            } else {
+                html += 'N/A';
+            }
+            html += '</td></tr>';
+
+            // Buy & Rate button
+            html += '<tr>';
+            html += '<td colspan="2" style="text-align: center;">';
+            html += '<button onclick="buyAndRate()" style="padding: 15px 30px; font-size: 18px; background-color: #4CAF50; color: white; border: none; cursor: pointer;">Buy & Rate</button>';
+            html += '</td></tr>';
+
+            // Description
+            if (product.description && product.description.length > 0) {
+                html += '<tr>';
+                html += '<td colspan="3"><strong>Description:</strong><br>';
+                product.description.forEach(desc => {
+                    html += `<p>${desc}</p>`;
+                });
+                html += '</td></tr>';
+            }
+
+            html += '</table>';
+            document.getElementById('productDetails').innerHTML = html;
+        }
+
+        // Load content-based recommendations (using /search API)
+        async function loadContentBasedRecommendations() {
+            try {
+                // Wait a bit for currentProductTitle to be set
+                let attempts = 0;
+                while (!currentProductTitle && attempts < 10) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                    attempts++;
+                }
+
+                if (!currentProductTitle) {
+                    throw new Error('Product title not available');
+                }
+
+                const response = await fetch(`${API_BASE}/search`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        query: currentProductTitle,
+                        top_k: 20
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load content-based recommendations');
+                }
+
+                const data = await response.json();
+
+                // Filter out the current product from recommendations
+                const recommendations = (data.results || []).filter(item => item.product_id !== currentProductId);
+
+                displayRecommendations(recommendations, 'contentBasedRecommendations');
+            } catch (error) {
+                console.error('Error loading content-based recommendations:', error);
+                document.getElementById('contentBasedRecommendations').innerHTML = '<p>Error loading recommendations.</p>';
+            }
+        }
+
+        // Load collaborative filtering recommendations (using /matrix_factor/similar API)
+        async function loadCollaborativeRecommendations() {
+            try {
+                const response = await fetch(`${API_BASE}/matrix_factor/similar`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        item_id: currentProductId,
+                        n: 20
+                    })
+                });
+
+                if (!response.ok) {
+                    // If the item is not found in the model, show a message
+                    if (response.status === 404) {
+                        document.getElementById('collaborativeRecommendations').innerHTML = '<p>No collaborative recommendations available for this product (product not in training data).</p>';
+                        return;
+                    }
+                    throw new Error('Failed to load collaborative recommendations');
+                }
+
+                const data = await response.json();
+                const recommendations = data.recommendations || [];
+
+                displayRecommendations(recommendations, 'collaborativeRecommendations');
+            } catch (error) {
+                console.error('Error loading collaborative recommendations:', error);
+                document.getElementById('collaborativeRecommendations').innerHTML = '<p>Error loading recommendations.</p>';
+            }
+        }
+
+        // Display recommendations in a horizontal scrolling section
+        function displayRecommendations(items, containerId) {
+            if (!items || items.length === 0) {
+                document.getElementById(containerId).innerHTML = '<p>No recommendations available.</p>';
+                return;
+            }
+
+            let html = '<div style="display: flex; gap: 20px; padding: 10px 0;">';
+
+            items.forEach(item => {
+                const itemId = item.product_id || item.item_id;
+                const title = item.title || 'Unknown Product';
+                const imageUrl = item.image_url;
+                const score = item.score || 0;
+
+                html += '<div style="display: inline-block; vertical-align: top; width: 150px; border: 1px solid #ccc; padding: 10px; text-align: center; cursor: pointer;" onclick="viewProduct(\'' + itemId + '\')">';
+
+                // Image
+                if (imageUrl) {
+                    html += `<img src="${imageUrl}" alt="${title}" style="max-width: 130px; max-height: 130px; display: block; margin: 0 auto;">`;
+                } else {
+                    html += '<div style="width: 130px; height: 130px; background-color: #f0f0f0; display: flex; align-items: center; justify-content: center; margin: 0 auto;">No Image</div>';
+                }
+
+                // Title (truncated)
+                html += `<p style="white-space: normal; font-size: 12px; margin: 10px 0; height: 40px; overflow: hidden;">${title.substring(0, 60)}${title.length > 60 ? '...' : ''}</p>`;
+
+                // Score
+                html += `<p style="font-size: 11px; color: #666;">Score: ${score.toFixed(3)}</p>`;
+
+                html += '</div>';
+            });
+
+            html += '</div>';
+            document.getElementById(containerId).innerHTML = html;
+        }
+
+        // Navigate to product page
+        function viewProduct(productId) {
+            window.location.href = `product.html?id=${productId}`;
+        }
+
+        // Go back to landing page
+        function goBack() {
+            window.location.href = 'landing.html';
+        }
+
+        // Buy and Rate functionality (placeholder)
+        function buyAndRate() {
+            alert('Buy & Rate functionality will be implemented when working on admin features.');
+        }
+    </script>
+</body>
+</html>
