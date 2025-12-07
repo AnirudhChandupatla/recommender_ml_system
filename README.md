@@ -6,6 +6,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A production-ready, full-stack machine learning recommender system built on the Amazon Appliances dataset. This project demonstrates a complete ML lifecycle from data ingestion and preprocessing through model training, serving, monitoring, and user interaction tracking.
+[![demo](recommender_system_demo_thumb.png)](./recommender_system_demo.mp4)
+[Watch the video](./recommender_system_demo.mp4)
 
 ---
 
